@@ -31,17 +31,25 @@ export default function SquatAngles({
     (async () => {
       try {
         const [f, s, b] = await Promise.all([
-          fetch(urls.front).then(r => { if(!r.ok) throw new Error("front "+r.status); return r.json(); }),
-          fetch(urls.side ).then(r => { if(!r.ok) throw new Error("side "+r.status ); return r.json(); }),
-          fetch(urls.back ).then(r => { if(!r.ok) throw new Error("back "+r.status ); return r.json(); }),
+          fetch(urls.front).then(r => { if(!r.ok) throw new Error("front " + r.status); return r.json(); }),
+          fetch(urls.side ).then(r => { if(!r.ok) throw new Error("side "  + r.status); return r.json(); }),
+          fetch(urls.back ).then(r => { if(!r.ok) throw new Error("back "  + r.status); return r.json(); }),
         ]);
+
         if (!alive) return;
+
+        // petite validation Lottie (très légère)
+        const looksLikeLottie = (d) => d && typeof d === "object" && ("v" in d) && ("layers" in d);
+        if (!looksLikeLottie(f) || !looksLikeLottie(s) || !looksLikeLottie(b)) {
+          throw new Error("payload Lottie invalide (champs manquants)");
+        }
+
         cacheRef.current = { front: f, side: s, back: b };
         setErr("");
         setLoading(false);
       } catch (e) {
         if (!alive) return;
-        setErr("Impossible de charger /lottie/*.json : " + e.message);
+        setErr("Impossible de charger /lottie/*.json : " + (e?.message ?? e));
         setLoading(false);
       }
     })();
@@ -51,46 +59,61 @@ export default function SquatAngles({
   // (Re)crée l’animation quand l’angle change
   useEffect(() => {
     if (loading || err) return;
-    if (!wrapRef.current) return;
+    const container = wrapRef.current;
+    if (!container) return;
 
-    // nettoie l’anim précédente
-    wrapRef.current.innerHTML = "";
-    const destroyPrev = () => {
-      try { animRef.current?.destroy(); } catch {}
-      animRef.current = null;
-    };
-    destroyPrev();
+    // Nettoie l’anim précédente + le DOM
+    try { animRef.current?.destroy(); } catch {}
+    animRef.current = null;
+    container.replaceChildren(); // plus propre que innerHTML=""
+
+    let cancelled = false;
+    let removeListener = () => {};
 
     (async () => {
-      const lottie = await getLottie();
-      const key = ["front","side","back"][idx];
-      const data = cacheRef.current[key];
-      if (!data) return;
+      try {
+        const lottie = await getLottie();
+        if (cancelled) return;
 
-      const anim = lottie.loadAnimation({
-        container: wrapRef.current,
-        renderer: "svg",
-        loop: false,
-        autoplay: true,
-        animationData: data,
-        rendererSettings: { preserveAspectRatio: "xMidYMid meet" }
-      });
-      animRef.current = anim;
+        const key = ["front","side","back"][idx];
+        const data = cacheRef.current[key];
+        if (!data) throw new Error("Données Lottie absentes pour " + key);
 
-      const onReady = () => anim.goToAndPlay(0, true);
-      anim.addEventListener("DOMLoaded", onReady);
-      return () => {
-        anim.removeEventListener("DOMLoaded", onReady);
-      };
+        const anim = lottie.loadAnimation({
+          container,
+          renderer: "svg",
+          loop: false,
+          autoplay: true,
+          animationData: data,
+          rendererSettings: { preserveAspectRatio: "xMidYMid meet" },
+        });
+        animRef.current = anim;
+
+        const onReady = () => anim.goToAndPlay(0, true);
+        anim.addEventListener("DOMLoaded", onReady);
+        removeListener = () => anim.removeEventListener("DOMLoaded", onReady);
+      } catch (e) {
+        if (!cancelled) {
+          setErr("Erreur Lottie: " + (e?.message ?? e));
+        }
+      }
     })();
 
     return () => {
+      cancelled = true;
+      try { removeListener(); } catch {}
       try { animRef.current?.destroy(); } catch {}
       animRef.current = null;
     };
   }, [idx, loading, err]);
 
-  const replay = () => animRef.current?.goToAndPlay(0, true);
+  const replay = () => {
+    try {
+      animRef.current?.goToAndPlay(0, true);
+    } catch (e) {
+      setErr("Impossible de rejouer l’animation: " + (e?.message ?? e));
+    }
+  };
 
   if (loading) return <div className="card">Chargement… (vérifie /lottie/*.json)</div>;
   if (err) return <div className="card text-red-600">{err}</div>;
@@ -102,6 +125,7 @@ export default function SquatAngles({
           {labels.map((lab, i) => (
             <button
               key={lab}
+              type="button"
               onClick={() => setIdx(i)}
               className={`px-3 py-1 rounded-full text-sm ${
                 i === idx ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
@@ -111,12 +135,13 @@ export default function SquatAngles({
             </button>
           ))}
         </div>
-        <button className="btn" onClick={replay}>Rejouer</button>
+        <button type="button" className="btn" onClick={replay}>Rejouer</button>
       </div>
 
-      <div className="rounded-2xl overflow-hidden shadow bg-white" style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
+      <div className="rounded-2xl overflow-hidden shadow bg-white dark:bg-gray-800/60" style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
         <div ref={wrapRef} aria-label={`Squat — vue ${labels[idx]}`} />
       </div>
     </div>
   );
 }
+
