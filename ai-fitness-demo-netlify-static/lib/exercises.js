@@ -19,14 +19,5 @@ export const EXERCISES = [
       "Genoux qui rentrent",
       "Arrondir le bas du dos"
     ]
-  },
-  {
-    id: "pushup",
-    name: "Pompes",
-    level: "Intermédiaire",
-    muscles: ["Pectoraux", "Épaules", "Triceps", "Gainage"],
-    video: "/videos/pushup.mp4",
-    thumbnail: "/placeholder.jpg",
-    cues: ["Corps gainé", "Coudes ~45°", "Respiration contrôlée"]
   }
 ];
