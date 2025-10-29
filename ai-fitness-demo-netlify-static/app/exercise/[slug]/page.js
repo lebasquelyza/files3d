@@ -2,29 +2,37 @@
 import dynamic from "next/dynamic";
 import { EXERCISES } from "@/lib/exercises";
 
+// On veut un rendu statique de toutes les pages existantes
 export const dynamicParams = false;
 export async function generateStaticParams() {
-  return EXERCISES.map((e) => ({ slug: String(e.id ?? e.slug) }));
+  // on génère à partir de slug si présent, sinon id stringifié
+  return EXERCISES.map((e) => ({
+    slug: String(e.slug ?? e.id),
+  }));
 }
 
+// Le lecteur Lottie est client-only
 const SquatAngles = dynamic(() => import("@/components/SquatAngles"), {
   ssr: false,
 });
 
 export default function ExercisePage({ params }) {
   const slug = String(params.slug);
+
+  // on accepte correspondance par slug OU par id
   const ex =
-    EXERCISES.find((e) => String(e.id) === slug) ||
-    EXERCISES.find((e) => String(e.slug) === slug);
+    EXERCISES.find((e) => String(e.slug) === slug) ??
+    EXERCISES.find((e) => String(e.id) === slug);
 
   if (!ex) {
     return <div className="card">Exercice introuvable.</div>;
   }
 
-  // 👉 URLs Lottie : on prend ex.lottie si présent, sinon des valeurs par défaut pour "squat"
+  // ✅ URLs Lottie garanties pour "squat" même si ex.lottie est absent
+  const isSquat = slug === "squat" || /squat/i.test(String(ex.name ?? ""));
   const lottieUrls =
     ex?.lottie ??
-    (slug === "squat"
+    (isSquat
       ? {
           front: "/lottie/squat-front.json",
           side: "/lottie/squat-side.json",
@@ -38,6 +46,7 @@ export default function ExercisePage({ params }) {
         <h1 className="text-2xl font-bold mb-3">{ex.name} — Démonstration</h1>
 
         {lottieUrls ? (
+          // ✅ On rend TOUJOURS le lecteur si on a des URLs (ex.lottie ou défaut)
           <SquatAngles urls={lottieUrls} />
         ) : ex.video ? (
           <video
@@ -63,15 +72,20 @@ export default function ExercisePage({ params }) {
               <div>
                 <div className="font-medium">À faire</div>
                 <ul className="list-disc pl-5 opacity-90">
-                  {ex.cues.map((c, i) => <li key={i}>{c}</li>)}
+                  {ex.cues.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
                 </ul>
               </div>
             ) : null}
+
             {ex.mistakes?.length ? (
               <div>
                 <div className="font-medium">À éviter</div>
                 <ul className="list-disc pl-5 opacity-90">
-                  {ex.mistakes.map((m, i) => <li key={i}>{m}</li>)}
+                  {ex.mistakes.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
                 </ul>
               </div>
             ) : null}
