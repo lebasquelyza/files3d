@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Test Lottie — Squat</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; background:#0f172a; color:#e5e7eb; }
+    .card { max-width: 820px; margin: 0 auto; background: #111827; border-radius: 16px; padding: 16px 16px 24px; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
+    .btn { padding:8px 12px; border-radius:999px; border:0; cursor:pointer; }
+    .btn-primary { background:#2563eb; color:#fff; }
+    .btn-ghost { background:#374151; color:#e5e7eb; }
+    #frame { background:#fff; border-radius:16px; overflow:hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+    #anim { width:100%; height:420px; position:relative; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="font-size:20px; font-weight:700; margin:0 0 10px;">Squat — Démonstration</h1>
+
+    <div class="row">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" data-view="front">Face</button>
+        <button class="btn btn-ghost"  data-view="side">Profil</button>
+        <button class="btn btn-ghost"  data-view="back">Dos</button>
+      </div>
+      <button class="btn btn-primary" id="replay">Rejouer</button>
+    </div>
+
+    <div id="frame">
+      <div id="anim" aria-label="Squat — lecteur Lottie"></div>
+    </div>
+  </div>
+
+  <!-- Lottie-web depuis CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" integrity="sha512-6D6V0s2m6YbA1bREmO4Z4zTg0fM5wz7wzqv8b5k9n6Yg2E3xF3xOqg3f3V9dHnO6d2lq3h0F6x4A9g3h2rK6sQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    (function(){
+      const map = {
+        front: '/lottie/squat-front.json',
+        side:  '/lottie/squat-side.json',
+        back:  '/lottie/squat-back.json'
+      };
+
+      const container = document.getElementById('anim');
+      const btns = document.querySelectorAll('[data-view]');
+      const replay = document.getElementById('replay');
+
+      let anim = null;
+      function load(view){
+        if (anim) { try { anim.destroy(); } catch(e){} anim = null; }
+        anim = lottie.loadAnimation({
+          container,
+          renderer: 'svg',
+          loop: false,
+          autoplay: true,
+          path: map[view]
+        });
+      }
+      function setActive(target){
+        btns.forEach(b => {
+          const on = (b === target);
+          b.classList.toggle('btn-primary', on);
+          b.classList.toggle('btn-ghost', !on);
+        });
+      }
+
+      btns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const v = btn.getAttribute('data-view');
+          load(v);
+          setActive(btn);
+        });
+      });
+      replay.addEventListener('click', () => { try { anim.goToAndPlay(0, true); } catch(e){} });
+
+      // démarrage par défaut
+      load('front');
+    })();
+  </script>
+</body>
+</html>
