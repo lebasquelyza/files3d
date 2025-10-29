@@ -1,3 +1,5 @@
+// app/page.tsx ou app/page.js
+import Link from "next/link";
 import { EXERCISES } from "@/lib/exercises";
 
 export default function HomePage() {
@@ -9,21 +11,28 @@ export default function HomePage() {
       </section>
 
       <section className="grid sm:grid-cols-2 gap-4">
-        {EXERCISES.map((ex) => (
-          <a key={ex.id} href={`/exercise/${ex.id}`} className="card block hover:shadow-lg transition">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg font-bold">
-                SQ
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold">{ex.name}</h2>
-                <div className="text-sm opacity-70">
-                  {ex.level} • {ex.muscles.join(", ")}
+        {EXERCISES.map((ex) => {
+          const muscles = Array.isArray(ex.muscles) ? ex.muscles.join(", ") : "—";
+          return (
+            <Link
+              key={ex.id}
+              href={`/exercise/${ex.id}`}
+              className="card block hover:shadow-lg transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg font-bold">
+                  {ex.short ?? "EX"}
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold">{ex.name ?? "Sans nom"}</h2>
+                  <div className="text-sm opacity-70">
+                    {(ex.level ?? "N/A")} • {muscles}
+                  </div>
                 </div>
               </div>
-            </div>
-          </a>
-        ))}
+            </Link>
+          );
+        })}
       </section>
     </div>
   );
