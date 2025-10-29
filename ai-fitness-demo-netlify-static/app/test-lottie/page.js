@@ -3,22 +3,18 @@ import Script from "next/script";
 export default function TestLottie() {
   return (
     <>
-      {/* Charge le web-component Lottie */}
-      <Script
-        src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"
-        strategy="afterInteractive"
-      />
-
-      {/* Player Lottie visible */}
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <lottie-player
-          id="player"
-          src="/lottie/squat-front.json"
-          style={{ width: "100%", height: "420px" }}
-          autoplay
-          renderer="svg"
-        ></lottie-player>
-      </div>
+      <Script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" strategy="afterInteractive" />
+      <Script id="tl-init" strategy="afterInteractive">{`
+        (function(){
+          function ready(f){document.readyState!=='loading'?f():document.addEventListener('DOMContentLoaded',f)}
+          ready(function(){
+            var el=document.getElementById('anim');
+            if(!el||!window.lottie) return;
+            window.lottie.loadAnimation({container:el,renderer:'svg',loop:true,autoplay:true,path:'/lottie/squat-front.json'});
+          });
+        })();
+      `}</Script>
+      <div id="anim" style={{width:"100%",height:420,maxWidth:720,margin:"20px auto",borderRadius:16,overflow:"hidden",background:"#fff"}} />
     </>
   );
 }
