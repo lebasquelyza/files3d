@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// Lecteur Lottie sans SSR, chargé côté client
+// Charge lottie-web côté client seulement
 let lottieLib = null;
 async function getLottie() {
   if (lottieLib) return lottieLib;
-  const mod = await import("lottie-web"); // no SSR
+  const mod = await import("lottie-web");
   lottieLib = mod.default ?? mod;
   return lottieLib;
 }
@@ -19,12 +19,13 @@ export default function SquatAngles({
 }) {
   const labels = useMemo(() => ["Face", "Profil", "Dos"], []);
   const [idx, setIdx] = useState(0); // 0 face, 1 profil, 2 dos
-  const [err, setErr] = useState("");
   const wrapRef = useRef(null);
   const animRef = useRef(null);
-  const dataCache = useRef({ front: null, side: null, back: null });
+  const cacheRef = useRef({ front: null, side: null, back: null });
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
-  // Précharge les 3 JSON une seule fois
+  // Précharge les JSON
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -35,74 +36,64 @@ export default function SquatAngles({
           fetch(urls.back ).then(r => { if(!r.ok) throw new Error("back "+r.status ); return r.json(); }),
         ]);
         if (!alive) return;
-        dataCache.current.front = f;
-        dataCache.current.side  = s;
-        dataCache.current.back  = b;
+        cacheRef.current = { front: f, side: s, back: b };
         setErr("");
+        setLoading(false);
       } catch (e) {
         if (!alive) return;
-        setErr("Impossible de charger les animations. Vérifie /public/lottie/*.json ("+e.message+").");
+        setErr("Impossible de charger /lottie/*.json : " + e.message);
+        setLoading(false);
       }
     })();
     return () => { alive = false; };
   }, [urls.front, urls.side, urls.back]);
 
-  // (Ré)initialise l’animation dans le conteneur lorsque idx change
+  // (Re)crée l’animation quand l’angle change
   useEffect(() => {
-    let cancelled = false;
+    if (loading || err) return;
+    if (!wrapRef.current) return;
+
+    // nettoie l’anim précédente
+    wrapRef.current.innerHTML = "";
+    const destroyPrev = () => {
+      try { animRef.current?.destroy(); } catch {}
+      animRef.current = null;
+    };
+    destroyPrev();
 
     (async () => {
-      if (!wrapRef.current) return;
-      // vide le conteneur avant de remonter l’anim
-      wrapRef.current.innerHTML = "";
-
       const lottie = await getLottie();
-
-      // choisit le JSON courant
       const key = ["front","side","back"][idx];
-      const data = dataCache.current[key];
-      if (!data) return; // pas encore chargé → l’autre useEffect remplira
+      const data = cacheRef.current[key];
+      if (!data) return;
 
-      // crée l’anim
       const anim = lottie.loadAnimation({
         container: wrapRef.current,
         renderer: "svg",
         loop: false,
         autoplay: true,
         animationData: data,
-        rendererSettings: {
-          preserveAspectRatio: "xMidYMid meet",
-          progressiveLoad: true
-        }
+        rendererSettings: { preserveAspectRatio: "xMidYMid meet" }
       });
       animRef.current = anim;
 
-      // sécurité: rejoue au début quand c’est prêt
-      const onDOMLoaded = () => { if (!cancelled) anim.goToAndPlay(0, true); };
-      anim.addEventListener("DOMLoaded", onDOMLoaded);
-
-      // cleanup
+      const onReady = () => anim.goToAndPlay(0, true);
+      anim.addEventListener("DOMLoaded", onReady);
       return () => {
-        anim.removeEventListener("DOMLoaded", onDOMLoaded);
-        anim.destroy();
+        anim.removeEventListener("DOMLoaded", onReady);
       };
     })();
 
-    return () => { cancelled = true; };
-  }, [idx]);
+    return () => {
+      try { animRef.current?.destroy(); } catch {}
+      animRef.current = null;
+    };
+  }, [idx, loading, err]);
 
-  const replay = () => {
-    const anim = animRef.current;
-    if (!anim) return;
-    anim.goToAndPlay(0, true);
-  };
+  const replay = () => animRef.current?.goToAndPlay(0, true);
 
-  const select = (i) => {
-    setIdx(i);
-    // anim sera recréée et rejouée automatiquement par l’effet ci-dessus
-  };
-
-  const label = labels[idx];
+  if (loading) return <div className="card">Chargement… (vérifie /lottie/*.json)</div>;
+  if (err) return <div className="card text-red-600">{err}</div>;
 
   return (
     <div className="card">
@@ -111,7 +102,7 @@ export default function SquatAngles({
           {labels.map((lab, i) => (
             <button
               key={lab}
-              onClick={() => select(i)}
+              onClick={() => setIdx(i)}
               className={`px-3 py-1 rounded-full text-sm ${
                 i === idx ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
               }`}
@@ -123,16 +114,9 @@ export default function SquatAngles({
         <button className="btn" onClick={replay}>Rejouer</button>
       </div>
 
-      {err ? (
-        <div className="p-4 rounded-lg bg-red-100 text-red-700">{err}</div>
-      ) : (
-        <div
-          className="rounded-2xl overflow-hidden shadow bg-white"
-          style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}
-        >
-          <div ref={wrapRef} aria-label={`Squat — vue ${label}`} />
-        </div>
-      )}
+      <div className="rounded-2xl overflow-hidden shadow bg-white" style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
+        <div ref={wrapRef} aria-label={`Squat — vue ${labels[idx]}`} />
+      </div>
     </div>
   );
 }
