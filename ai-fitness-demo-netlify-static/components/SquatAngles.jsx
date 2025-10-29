@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * Chargement lazy de lottie-web (client only)
- */
+/** Lazy-load de lottie-web côté client */
 let lottieLib = null;
 async function getLottie() {
   if (lottieLib) return lottieLib;
@@ -13,14 +11,12 @@ async function getLottie() {
   return lottieLib;
 }
 
-/**
- * Composant d’affichage des trois vues Lottie (Face / Profil / Dos)
- */
+/** Composant: démos Lottie Face / Profil / Dos + bouton Rejouer */
 export default function SquatAngles({
   urls = {
     front: "/lottie/squat-front.json",
-    side: "/lottie/squat-side.json",
-    back: "/lottie/squat-back.json",
+    side:  "/lottie/squat-side.json",
+    back:  "/lottie/squat-back.json",
   },
 }) {
   const labels = useMemo(() => ["Face", "Profil", "Dos"], []);
@@ -31,9 +27,7 @@ export default function SquatAngles({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  /**
-   * Préchargement des 3 JSON Lottie avec validation minimale
-   */
+  /** Préchargement des 3 JSON (avec validation minimale Lottie) */
   useEffect(() => {
     let alive = true;
 
@@ -56,8 +50,8 @@ export default function SquatAngles({
 
         const [f, s, b] = await Promise.all([
           fetchJson("front", urls.front),
-          fetchJson("side", urls.side),
-          fetchJson("back", urls.back),
+          fetchJson("side",  urls.side),
+          fetchJson("back",  urls.back),
         ]);
 
         if (!alive) return;
@@ -65,22 +59,15 @@ export default function SquatAngles({
         setLoading(false);
       } catch (e) {
         if (!alive) return;
-        setErr(
-          "Impossible de charger /lottie/*.json : " + (e?.message ?? String(e))
-        );
+        setErr("Impossible de charger /lottie/*.json : " + (e?.message ?? String(e)));
         setLoading(false);
       }
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [urls.front, urls.side, urls.back]);
 
-  /**
-   * (Re)création de l’animation à chaque changement de vue
-   * + nettoyage strict pour éviter fuites/erreurs
-   */
+  /** (Re)création de l’animation à chaque changement de vue */
   useEffect(() => {
     if (loading || err) return;
 
@@ -88,12 +75,9 @@ export default function SquatAngles({
     if (!container) return;
 
     // Nettoyage total de l’anim précédente et du DOM
-    try {
-      animRef.current?.destroy();
-    } catch {}
+    try { animRef.current?.destroy(); } catch {}
     animRef.current = null;
     try {
-      // Plus sûr que innerHTML = ""
       if (container.replaceChildren) container.replaceChildren();
       else container.innerHTML = "";
     } catch {}
@@ -106,7 +90,7 @@ export default function SquatAngles({
         const lottie = await getLottie();
         if (cancelled) return;
 
-        const key = ["front", "side", "back"][idx];
+        const key = ["front","side","back"][idx];
         const data = cacheRef.current[key];
         if (!data) throw new Error("Données Lottie absentes pour " + key);
 
@@ -121,12 +105,8 @@ export default function SquatAngles({
         animRef.current = anim;
 
         const onReady = () => {
-          try {
-            anim.goToAndPlay(0, true);
-          } catch (e) {
-            // Si le goToAndPlay échoue, on signale l’erreur sans crasher
-            setErr("Erreur Lottie (lecture) : " + (e?.message ?? String(e)));
-          }
+          try { anim.goToAndPlay(0, true); }
+          catch (e) { setErr("Erreur Lottie (lecture) : " + (e?.message ?? String(e))); }
         };
 
         anim.addEventListener("DOMLoaded", onReady);
@@ -140,30 +120,19 @@ export default function SquatAngles({
 
     return () => {
       cancelled = true;
-      try {
-        removeReadyListener();
-      } catch {}
-      try {
-        animRef.current?.destroy();
-      } catch {}
+      try { removeReadyListener(); } catch {}
+      try { animRef.current?.destroy(); } catch {}
       animRef.current = null;
     };
   }, [idx, loading, err]);
 
-  /**
-   * Replay (remet la tête de lecture à 0)
-   */
+  /** Rejouer depuis 0 */
   const replay = () => {
-    try {
-      animRef.current?.goToAndPlay(0, true);
-    } catch (e) {
-      setErr("Impossible de rejouer l’animation : " + (e?.message ?? String(e)));
-    }
+    try { animRef.current?.goToAndPlay(0, true); }
+    catch (e) { setErr("Impossible de rejouer l’animation : " + (e?.message ?? String(e))); }
   };
 
-  /**
-   * Rendus d’états
-   */
+  /** États de chargement / erreur */
   if (loading) {
     return (
       <div className="card">
@@ -175,10 +144,9 @@ export default function SquatAngles({
     return <div className="card text-red-600">{err}</div>;
   }
 
-  /**
-   * Rendu principal
-   * - Le conteneur clippe strictement le SVG (overflow:hidden)
-   * - aspectRatio évite que le SVG "prenne tout l’écran" s’il a des tailles bizarres
+  /** Rendu principal
+   *  - Hauteur garantie via paddingTop (16:9) + enfant en absolute
+   *  - overflow:hidden pour empêcher le SVG de déborder/recouvrir la page
    */
   return (
     <div className="card">
@@ -190,9 +158,7 @@ export default function SquatAngles({
               type="button"
               onClick={() => setIdx(i)}
               className={`px-3 py-1 rounded-full text-sm ${
-                i === idx
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700"
+                i === idx ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
               }`}
             >
               {lab}
@@ -213,16 +179,20 @@ export default function SquatAngles({
           margin: "0 auto",
           position: "relative",
           overflow: "hidden",
-          aspectRatio: "16 / 9", // fixe un cadre pour empêcher tout débordement plein écran
+          // ✅ Hauteur garantie (choisis UNE option) :
+          // height: 420,            // A) hauteur fixe simple
+          paddingTop: "56.25%",     // B) 16:9 responsive; commenter si tu utilises "height"
         }}
       >
+        {/* Si paddingTop est utilisé, l'enfant remplit via absolute */}
         <div
           ref={wrapRef}
           aria-label={`Squat — vue ${labels[idx]}`}
           style={{
+            position: "absolute",
+            inset: 0,
             width: "100%",
             height: "100%",
-            position: "relative",
             background: "transparent",
           }}
         />
