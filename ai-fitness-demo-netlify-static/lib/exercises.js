@@ -4,7 +4,11 @@ export const EXERCISES = [
     name: "Squat",
     level: "Débutant",
     muscles: ["Quadriceps", "Fessiers", "Ischios"],
-    equipment: ["Poids du corps"],
+    lottie: {
+      front: "/lottie/squat-front.json",
+      side:  "/lottie/squat-side.json",
+      back:  "/lottie/squat-back.json"
+    },
     cues: [
       "Pieds largeur d'épaules",
       "Genoux suivent les orteils",
@@ -14,27 +18,15 @@ export const EXERCISES = [
       "Talons qui se décollent",
       "Genoux qui rentrent",
       "Arrondir le bas du dos"
-    ],
-    video: "/videos/squat.mp4",
-    thumbnail: "/placeholder.jpg"
+    ]
   },
   {
     id: "pushup",
     name: "Pompes",
     level: "Intermédiaire",
     muscles: ["Pectoraux", "Épaules", "Triceps", "Gainage"],
-    equipment: ["Poids du corps"],
-    cues: [
-      "Corps gainé en ligne",
-      "Coudes ~45° du buste",
-      "Poitrine vers le sol"
-    ],
-    mistakes: [
-      "Bassin qui s'affaisse",
-      "Coudes trop écartés",
-      "Amplitude incomplète"
-    ],
     video: "/videos/pushup.mp4",
-    thumbnail: "/placeholder.jpg"
+    thumbnail: "/placeholder.jpg",
+    cues: ["Corps gainé", "Coudes ~45°", "Respiration contrôlée"]
   }
 ];
