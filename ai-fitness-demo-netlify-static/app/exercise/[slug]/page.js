@@ -5,36 +5,49 @@ import { EXERCISES } from "@/lib/exercises";
 // On fige les routes dynamiques à la build (SSG)
 export const dynamicParams = false;
 export async function generateStaticParams() {
-  return EXERCISES.map((e) => ({ slug: e.id }));
+  return EXERCISES.map((e) => ({ slug: String(e.id) })); // <-- forcer string
 }
 
 // Le lecteur Lottie est client-only -> import dynamique sans SSR
 const SquatAngles = dynamic(() => import("@/components/SquatAngles"), {
   ssr: false,
+  // optionally: loading: () => <div className="card">Chargement…</div>,
 });
 
 export default function ExercisePage({ params }) {
-  const ex = EXERCISES.find((e) => e.id === params.slug);
+  const slug = String(params.slug); // <-- forcer string
+  const ex = EXERCISES.find((e) => String(e.id) === slug);
+
   if (!ex) {
     return <div className="card">Exercice introuvable.</div>;
   }
 
   // Cas Squat avec Lottie (Face / Profil / Dos)
   if (ex.lottie) {
+    const front = ex?.lottie?.front ?? null;
+    const side  = ex?.lottie?.side  ?? null;
+    const back  = ex?.lottie?.back  ?? null;
+
+    // Garde-fou: si une URL manque, on affiche un message au lieu de crasher
+    const missing = [!front && "front", !side && "side", !back && "back"].filter(Boolean);
+
     return (
       <div className="space-y-6">
         <div className="card">
           <h1 className="text-2xl font-bold mb-3">{ex.name} — Démonstration</h1>
-          <SquatAngles
-            urls={{
-              front: ex.lottie.front, // "/lottie/squat-front.json"
-              side: ex.lottie.side,   // "/lottie/squat-side.json"
-              back: ex.lottie.back,   // "/lottie/squat-back.json"
-            }}
-          />
+
+          {missing.length > 0 ? (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/30">
+              Fichier Lottie manquant: {missing.join(", ")}.
+              Vérifie les chemins dans <code>ex.lottie</code>.
+            </div>
+          ) : (
+            <SquatAngles
+              urls={{ front, side, back }}
+            />
+          )}
         </div>
 
-        {/* Bloc conseils (facultatif) */}
         {(ex.cues?.length || ex.mistakes?.length) ? (
           <div className="card">
             <h3 className="font-semibold mb-2">Conseils</h3>
@@ -43,9 +56,7 @@ export default function ExercisePage({ params }) {
                 <div>
                   <div className="font-medium">À faire</div>
                   <ul className="list-disc pl-5 opacity-90">
-                    {ex.cues.map((c, i) => (
-                      <li key={i}>{c}</li>
-                    ))}
+                    {ex.cues.map((c, i) => <li key={i}>{c}</li>)}
                   </ul>
                 </div>
               ) : null}
@@ -53,9 +64,7 @@ export default function ExercisePage({ params }) {
                 <div>
                   <div className="font-medium">À éviter</div>
                   <ul className="list-disc pl-5 opacity-90">
-                    {ex.mistakes.map((m, i) => (
-                      <li key={i}>{m}</li>
-                    ))}
+                    {ex.mistakes.map((m, i) => <li key={i}>{m}</li>)}
                   </ul>
                 </div>
               ) : null}
@@ -66,7 +75,7 @@ export default function ExercisePage({ params }) {
     );
   }
 
-  // Fallback vidéo (au cas où d'autres exos en MP4 arriveraient plus tard)
+  // Fallback vidéo
   return (
     <div className="space-y-6">
       <div className="card">
