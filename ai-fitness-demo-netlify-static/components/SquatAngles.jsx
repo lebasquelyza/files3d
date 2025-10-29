@@ -11,7 +11,6 @@ async function getLottie() {
   return lottieLib;
 }
 
-/** Composant: démos Lottie Face / Profil / Dos + bouton Rejouer */
 export default function SquatAngles({
   urls = {
     front: "/lottie/squat-front.json",
@@ -26,9 +25,14 @@ export default function SquatAngles({
   const cacheRef = useRef({ front: null, side: null, back: null });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // S'assure qu'on est bien côté client
+  useEffect(() => setMounted(true), []);
 
   /** Préchargement des 3 JSON (avec validation minimale Lottie) */
   useEffect(() => {
+    if (!mounted) return;
     let alive = true;
 
     (async () => {
@@ -65,11 +69,11 @@ export default function SquatAngles({
     })();
 
     return () => { alive = false; };
-  }, [urls.front, urls.side, urls.back]);
+  }, [mounted, urls.front, urls.side, urls.back]);
 
   /** (Re)création de l’animation à chaque changement de vue */
   useEffect(() => {
-    if (loading || err) return;
+    if (!mounted || loading || err) return;
 
     const container = wrapRef.current;
     if (!container) return;
@@ -112,9 +116,7 @@ export default function SquatAngles({
         anim.addEventListener("DOMLoaded", onReady);
         removeReadyListener = () => anim.removeEventListener("DOMLoaded", onReady);
       } catch (e) {
-        if (!cancelled) {
-          setErr("Erreur Lottie : " + (e?.message ?? String(e)));
-        }
+        if (!cancelled) setErr("Erreur Lottie : " + (e?.message ?? String(e)));
       }
     })();
 
@@ -124,7 +126,7 @@ export default function SquatAngles({
       try { animRef.current?.destroy(); } catch {}
       animRef.current = null;
     };
-  }, [idx, loading, err]);
+  }, [mounted, idx, loading, err]);
 
   /** Rejouer depuis 0 */
   const replay = () => {
@@ -133,6 +135,8 @@ export default function SquatAngles({
   };
 
   /** États de chargement / erreur */
+  if (!mounted) return null;
+
   if (loading) {
     return (
       <div className="card">
@@ -141,13 +145,22 @@ export default function SquatAngles({
     );
   }
   if (err) {
-    return <div className="card text-red-600">{err}</div>;
+    return (
+      <div className="card text-red-600 space-y-2">
+        <div>{err}</div>
+        <details className="text-sm">
+          <summary className="cursor-pointer">Debug (component)</summary>
+          <div className="mt-1">
+            <div><b>front</b>: {urls.front}</div>
+            <div><b>side</b>: {urls.side}</div>
+            <div><b>back</b>: {urls.back}</div>
+          </div>
+        </details>
+      </div>
+    );
   }
 
-  /** Rendu principal
-   *  - Hauteur garantie via paddingTop (16:9) + enfant en absolute
-   *  - overflow:hidden pour empêcher le SVG de déborder/recouvrir la page
-   */
+  /** Rendu principal — hauteur garantie */
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
@@ -179,12 +192,13 @@ export default function SquatAngles({
           margin: "0 auto",
           position: "relative",
           overflow: "hidden",
-          // ✅ Hauteur garantie (choisis UNE option) :
-          // height: 420,            // A) hauteur fixe simple
-          paddingTop: "56.25%",     // B) 16:9 responsive; commenter si tu utilises "height"
+          // Option A) hauteur fixe fiable :
+          height: 420,
+          // Option B) responsive 16:9 :
+          // paddingTop: "56.25%",
         }}
       >
-        {/* Si paddingTop est utilisé, l'enfant remplit via absolute */}
+        {/* Si paddingTop est utilisé, utiliser position:absolute + inset:0 */}
         <div
           ref={wrapRef}
           aria-label={`Squat — vue ${labels[idx]}`}
@@ -197,7 +211,22 @@ export default function SquatAngles({
           }}
         />
       </div>
+
+      {/* --- Panneau debug côté composant --- */}
+      <details className="mt-3">
+        <summary className="cursor-pointer select-none">Debug (component)</summary>
+        <div className="mt-2 text-sm grid grid-cols-2 gap-2">
+          <div><b>idx</b>: {idx} ({labels[idx]})</div>
+          <div><b>hasAnim</b>: {String(!!animRef.current)}</div>
+          <div className="col-span-2"><b>front</b>: {urls.front}</div>
+          <div className="col-span-2"><b>side</b>: {urls.side}</div>
+          <div className="col-span-2"><b>back</b>: {urls.back}</div>
+          <div className="opacity-70 col-span-2">
+            Si rien ne s’affiche : inspecte ce conteneur et vérifie qu’un <code>&lt;svg&gt;</code> est injecté.
+            Dans l’onglet Network, les 3 JSON doivent répondre <b>200</b>.
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
-
