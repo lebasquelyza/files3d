@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Lottie from "lottie-react";
 
 export default function SquatAngles({
   urls = {
@@ -10,73 +9,54 @@ export default function SquatAngles({
   },
 }) {
   const labels = useMemo(() => ["Face", "Profil", "Dos"], []);
-  const [idx, setIdx] = useState(0);     // 0: face, 1: profil, 2: dos
-  const [data, setData] = useState([null, null, null]);
-  const [error, setError] = useState(null);
-  const [nonce, setNonce] = useState(0); // pour forcer le remount (replay)
-  const containerRef = useRef(null);
+  const [idx, setIdx] = useState(0); // 0: face, 1: profil, 2: dos
+  const playerRef = useRef(null);
 
-  // Précharge les JSON (public/) et gère les erreurs 404
+  // Charge le web component <lottie-player> si besoin
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [front, side, back] = await Promise.all([
-          fetch(urls.front).then(r => { if(!r.ok) throw new Error("front "+r.status); return r.json(); }),
-          fetch(urls.side).then(r  => { if(!r.ok) throw new Error("side "+r.status);  return r.json(); }),
-          fetch(urls.back).then(r  => { if(!r.ok) throw new Error("back "+r.status);  return r.json(); }),
-        ]);
-        if (mounted) { setData([front, side, back]); setError(null); }
-      } catch (e) {
-        if (mounted) setError("Impossible de charger les animations (vérifie les fichiers dans /public/lottie/). Détail: " + e.message);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [urls.front, urls.side, urls.back]);
+    if (typeof window === "undefined") return;
 
-  // Swipe mobile pour changer d’angle
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    let startX = null;
-    const onStart = (e) => { startX = e.touches ? e.touches[0].clientX : e.clientX; };
-    const onMove  = (e) => {
-      if (startX == null) return;
-      const x = e.touches ? e.touches[0].clientX : e.clientX;
-      const dx = x - startX;
-      if (Math.abs(dx) > 60) {
-        setIdx(i => (i + (dx < 0 ? 1 : -1) + 3) % 3);
-        setNonce(n => n + 1); // force replay
-        startX = null;
-      }
-    };
-    const onEnd = () => { startX = null; };
-    el.addEventListener("mousedown", onStart);
-    el.addEventListener("mousemove", onMove);
-    el.addEventListener("mouseup", onEnd);
-    el.addEventListener("mouseleave", onEnd);
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: true });
-    el.addEventListener("touchend", onEnd);
-    return () => {
-      el.removeEventListener("mousedown", onStart);
-      el.removeEventListener("mousemove", onMove);
-      el.removeEventListener("mouseup", onEnd);
-      el.removeEventListener("mouseleave", onEnd);
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-    };
+    function ensureLottiePlayer() {
+      return new Promise((resolve, reject) => {
+        if (window.customElements && window.customElements.get("lottie-player")) {
+          resolve();
+          return;
+        }
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js";
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Impossible de charger lottie-player"));
+        document.body.appendChild(s);
+      });
+    }
+
+    ensureLottiePlayer().catch((e) => {
+      console.error(e);
+      alert("Erreur: lecteur Lottie non chargé.");
+    });
   }, []);
 
-  const current = data[idx];
+  // Quand on change d’angle → recharge la source et rejoue
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    const src = [urls.front, urls.side, urls.back][idx];
+    player.load(src);        // charge le nouveau JSON
+    player.loop = false;     // un squat puis stop
+    player.autoplay = true;  // lecture auto
+    // petite sécurité: relance quand le fichier est prêt
+    const onReady = () => player.play();
+    player.addEventListener("ready", onReady, { once: true });
+    return () => player.removeEventListener("ready", onReady);
+  }, [idx, urls.front, urls.side, urls.back]);
 
-  // Affichages d’état
-  if (error) return <div className="card text-red-600">{error}</div>;
-  if (!current) return <div className="card">Chargement…</div>;
-
-  // Handlers boutons
-  const select = (i) => { setIdx(i); setNonce(n => n + 1); }; // rejoue même si on reclique le même angle
+  const replay = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.seek(0);
+    player.play();
+  };
 
   return (
     <div className="card">
@@ -85,7 +65,7 @@ export default function SquatAngles({
           {labels.map((label, i) => (
             <button
               key={label}
-              onClick={() => select(i)}
+              onClick={() => setIdx(i)}
               className={`px-3 py-1 rounded-full text-sm ${
                 i === idx ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
               }`}
@@ -94,27 +74,21 @@ export default function SquatAngles({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setNonce(n => n + 1)}
-          className="btn"
-          aria-label="Rejouer"
-          title="Rejouer"
-        >
-          Rejouer
-        </button>
+        <button className="btn" onClick={replay}>Rejouer</button>
       </div>
 
-      <div ref={containerRef} className="rounded-2xl overflow-hidden shadow bg-white">
-        {/* key force un remount => lottie autoplay relance l'anim */}
-        <Lottie
-          key={`${idx}-${nonce}`}
-          animationData={current}
-          loop={false}
-          autoplay={true}
+      {/* Le lecteur Lottie officiel (web component) */}
+      <div className="rounded-2xl overflow-hidden shadow bg-white">
+        {/* @ts-ignore - web component */}
+        <lottie-player
+          ref={playerRef}
           style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}
+          background="transparent"
+          speed="1"
+          mode="normal"
+          autoplay
         />
       </div>
     </div>
   );
 }
-
