@@ -1,30 +1,40 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Lottie from "lottie-react";
 
-export default function SquatAngles({ urls = {front:"/lottie/squat-front.json", side:"/lottie/squat-side.json", back:"/lottie/squat-back.json"} }) {
-  const [idx, setIdx] = useState(0);
+export default function SquatAngles({
+  urls = {
+    front: "/lottie/squat-front.json",
+    side:  "/lottie/squat-side.json",
+    back:  "/lottie/squat-back.json",
+  },
+}) {
+  const labels = useMemo(() => ["Face", "Profil", "Dos"], []);
+  const [idx, setIdx] = useState(0);     // 0: face, 1: profil, 2: dos
   const [data, setData] = useState([null, null, null]);
-  const lottieRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [nonce, setNonce] = useState(0); // pour forcer le remount (replay)
   const containerRef = useRef(null);
 
+  // Précharge les JSON (public/) et gère les erreurs 404
   useEffect(() => {
-    Promise.all([
-      fetch(urls.front).then(r=>r.json()),
-      fetch(urls.side).then(r=>r.json()),
-      fetch(urls.back).then(r=>r.json()),
-    ]).then(setData);
+    let mounted = true;
+    (async () => {
+      try {
+        const [front, side, back] = await Promise.all([
+          fetch(urls.front).then(r => { if(!r.ok) throw new Error("front "+r.status); return r.json(); }),
+          fetch(urls.side).then(r  => { if(!r.ok) throw new Error("side "+r.status);  return r.json(); }),
+          fetch(urls.back).then(r  => { if(!r.ok) throw new Error("back "+r.status);  return r.json(); }),
+        ]);
+        if (mounted) { setData([front, side, back]); setError(null); }
+      } catch (e) {
+        if (mounted) setError("Impossible de charger les animations (vérifie les fichiers dans /public/lottie/). Détail: " + e.message);
+      }
+    })();
+    return () => { mounted = false; };
   }, [urls.front, urls.side, urls.back]);
 
-  useEffect(() => {
-    const l = lottieRef.current;
-    if (!l) return;
-    l.stop();
-    const t = setTimeout(() => l.play(), 30);
-    return () => clearTimeout(t);
-  }, [idx]);
-
-  // Swipe mobile
+  // Swipe mobile pour changer d’angle
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -35,7 +45,8 @@ export default function SquatAngles({ urls = {front:"/lottie/squat-front.json", 
       const x = e.touches ? e.touches[0].clientX : e.clientX;
       const dx = x - startX;
       if (Math.abs(dx) > 60) {
-        setIdx((i) => (i + (dx < 0 ? 1 : -1) + 3) % 3);
+        setIdx(i => (i + (dx < 0 ? 1 : -1) + 3) % 3);
+        setNonce(n => n + 1); // force replay
         startX = null;
       }
     };
@@ -59,9 +70,13 @@ export default function SquatAngles({ urls = {front:"/lottie/squat-front.json", 
   }, []);
 
   const current = data[idx];
+
+  // Affichages d’état
+  if (error) return <div className="card text-red-600">{error}</div>;
   if (!current) return <div className="card">Chargement…</div>;
 
-  const labels = ["Face", "Profil", "Dos"];
+  // Handlers boutons
+  const select = (i) => { setIdx(i); setNonce(n => n + 1); }; // rejoue même si on reclique le même angle
 
   return (
     <div className="card">
@@ -70,7 +85,7 @@ export default function SquatAngles({ urls = {front:"/lottie/squat-front.json", 
           {labels.map((label, i) => (
             <button
               key={label}
-              onClick={() => setIdx(i)}
+              onClick={() => select(i)}
               className={`px-3 py-1 rounded-full text-sm ${
                 i === idx ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700"
               }`}
@@ -79,11 +94,20 @@ export default function SquatAngles({ urls = {front:"/lottie/squat-front.json", 
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setNonce(n => n + 1)}
+          className="btn"
+          aria-label="Rejouer"
+          title="Rejouer"
+        >
+          Rejouer
+        </button>
       </div>
 
       <div ref={containerRef} className="rounded-2xl overflow-hidden shadow bg-white">
+        {/* key force un remount => lottie autoplay relance l'anim */}
         <Lottie
-          lottieRef={lottieRef}
+          key={`${idx}-${nonce}`}
           animationData={current}
           loop={false}
           autoplay={true}
