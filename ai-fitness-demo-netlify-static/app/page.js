@@ -4,30 +4,26 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <section className="text-center">
-        <h1 className="text-3xl md:text-4xl font-extrabold">Catalogue d'exercices avec IA</h1>
-        <p className="opacity-80 mt-2">Regarde la démonstration puis entraîne-toi avec la webcam et un compteur intelligent.</p>
+        <h1 className="text-3xl md:text-4xl font-extrabold">Exercices</h1>
+        <p className="opacity-80 mt-2">Clique sur un exercice pour voir la démonstration.</p>
       </section>
 
       <section className="grid sm:grid-cols-2 gap-4">
         {EXERCISES.map((ex) => (
-          <article key={ex.id} className="card">
+          <a key={ex.id} href={`/exercise/${ex.id}`} className="card block hover:shadow-lg transition">
             <div className="flex items-center gap-4">
-              <img src={ex.thumbnail} alt={ex.name} className="w-24 h-24 rounded-xl object-cover" />
+              <div className="w-20 h-20 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm">
+                {ex.name[0]}
+              </div>
               <div className="flex-1">
                 <h2 className="text-xl font-semibold">{ex.name}</h2>
-                <div className="flex gap-2 mt-1">
-                  <span className="badge">{ex.level}</span>
-                  <span className="badge">{ex.equipment.join(", ")}</span>
-                </div>
+                <div className="text-sm opacity-70">{ex.level} • {ex.muscles?.join(", ")}</div>
               </div>
             </div>
-            <div className="mt-4 flex gap-2">
-              <a className="btn" href={`/exercise/${ex.id}`}>Voir l'exercice</a>
-              <a className="btn" href={`/practice/${ex.id}`}>Pratiquer avec l'IA</a>
-            </div>
-          </article>
+          </a>
         ))}
       </section>
     </div>
   );
 }
+
