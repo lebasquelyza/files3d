@@ -12,50 +12,66 @@ export default function SquatAngles({
   const [idx, setIdx] = useState(0); // 0: face, 1: profil, 2: dos
   const playerRef = useRef(null);
 
-  // Charge le web component <lottie-player> si besoin
+  // Charge le web component <lottie-player>
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    function ensureLottiePlayer() {
-      return new Promise((resolve, reject) => {
-        if (window.customElements && window.customElements.get("lottie-player")) {
-          resolve();
-          return;
-        }
+    const ensure = () =>
+      new Promise((resolve, reject) => {
+        if (window.customElements?.get("lottie-player")) return resolve();
         const s = document.createElement("script");
-        s.src = "https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js";
+        s.src =
+          "https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js";
         s.async = true;
         s.onload = () => resolve();
-        s.onerror = () => reject(new Error("Impossible de charger lottie-player"));
+        s.onerror = () => reject(new Error("Chargement lottie-player échoué"));
         document.body.appendChild(s);
       });
-    }
 
-    ensureLottiePlayer().catch((e) => {
-      console.error(e);
-      alert("Erreur: lecteur Lottie non chargé.");
-    });
+    ensure().catch((e) => console.error(e));
   }, []);
 
-  // Quand on change d’angle → recharge la source et rejoue
+  // Applique la bonne source + lecture
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
     const src = [urls.front, urls.side, urls.back][idx];
-    player.load(src);        // charge le nouveau JSON
-    player.loop = false;     // un squat puis stop
-    player.autoplay = true;  // lecture auto
-    // petite sécurité: relance quand le fichier est prêt
-    const onReady = () => player.play();
+
+    // méthode robuste: setAttribute + seek + play
+    player.setAttribute("src", src);
+    player.setAttribute("loop", "false");
+    player.setAttribute("autoplay", "true");
+
+    // si le fichier est long à charger, relance quand "ready"
+    const onReady = () => {
+      try {
+        player.seek(0);
+        player.play();
+      } catch {}
+    };
     player.addEventListener("ready", onReady, { once: true });
-    return () => player.removeEventListener("ready", onReady);
+
+    // petite relance de secours après 300ms
+    const t = setTimeout(() => {
+      try {
+        player.seek(0);
+        player.play();
+      } catch {}
+    }, 300);
+
+    return () => {
+      player.removeEventListener("ready", onReady);
+      clearTimeout(t);
+    };
   }, [idx, urls.front, urls.side, urls.back]);
 
   const replay = () => {
     const player = playerRef.current;
     if (!player) return;
-    player.seek(0);
-    player.play();
+    try {
+      player.seek(0);
+      player.play();
+    } catch {}
   };
 
   return (
@@ -77,18 +93,16 @@ export default function SquatAngles({
         <button className="btn" onClick={replay}>Rejouer</button>
       </div>
 
-      {/* Le lecteur Lottie officiel (web component) */}
-      <div className="rounded-2xl overflow-hidden shadow bg-white">
-        {/* @ts-ignore - web component */}
-        <lottie-player
-          ref={playerRef}
-          style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}
-          background="transparent"
-          speed="1"
-          mode="normal"
-          autoplay
-        />
-      </div>
+      {/* Lecteur Lottie officiel (web component) */}
+      {/* @ts-ignore */}
+      <lottie-player
+        ref={playerRef}
+        style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}
+        background="transparent"
+        speed="1"
+        mode="normal"
+        autoplay
+      />
     </div>
   );
 }
