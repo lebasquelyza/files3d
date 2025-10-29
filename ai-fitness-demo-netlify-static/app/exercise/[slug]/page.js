@@ -1,5 +1,4 @@
 // app/exercise/[slug]/page.js
-import dynamic from "next/dynamic";
 import { EXERCISES } from "@/lib/exercises";
 
 export const dynamicParams = false;
@@ -7,59 +6,99 @@ export async function generateStaticParams() {
   return EXERCISES.map((e) => ({ slug: String(e.slug ?? e.id) }));
 }
 
-// Lottie client-only
-const SquatAngles = dynamic(() => import("@/components/SquatAngles"), {
-  ssr: false,
-});
-
 export default function ExercisePage({ params }) {
   const slug = String(params.slug);
-
-  // On cherche par slug OU par id
   const ex =
     EXERCISES.find((e) => String(e.slug) === slug) ??
     EXERCISES.find((e) => String(e.id) === slug);
 
-  if (!ex) {
-    return <div className="card">Exercice introuvable.</div>;
-  }
+  if (!ex) return <div className="card">Exercice introuvable.</div>;
 
-  // URLs Lottie garanties pour le squat (même si ex.lottie est absent)
+  // URLs Lottie garanties pour le squat (adapter si besoin)
   const isSquat = slug === "squat" || /squat/i.test(String(ex.name ?? ""));
-  const lottieUrls =
+  const urls =
     ex?.lottie ??
     (isSquat
       ? {
           front: "/lottie/squat-front.json",
-          side: "/lottie/squat-side.json",
-          back: "/lottie/squat-back.json",
+          side:  "/lottie/squat-side.json",
+          back:  "/lottie/squat-back.json",
         }
       : null);
 
   return (
     <div className="space-y-6">
+      {/* Charge le web component Lottie (aucune hydratation React nécessaire) */}
+      <script
+        defer
+        src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"
+      />
+
       <div className="card">
         <h1 className="text-2xl font-bold mb-3">{ex.name} — Démonstration</h1>
 
-        {lottieUrls ? (
+        {urls ? (
           <>
-            <SquatAngles urls={lottieUrls} />
-
-            {/* --- Panneau debug côté page --- */}
-            <details className="mt-4">
-              <summary className="cursor-pointer select-none">Debug (page)</summary>
-              <div className="mt-2 text-sm space-y-1">
-                <div><b>slug :</b> {slug}</div>
-                <div><b>aLottie :</b> {String(!!ex.lottie)}  <b>isSquat :</b> {String(isSquat)}</div>
-                <div><b>front :</b> {lottieUrls.front}</div>
-                <div><b>side :</b> {lottieUrls.side}</div>
-                <div><b>back :</b> {lottieUrls.back}</div>
-                <div className="opacity-70">
-                  Les trois URLs ci-dessus doivent répondre <b>200</b> (Network).
-                  Les fichiers doivent être dans <code>public/lottie/</code>.
-                </div>
+            {/* Boutons statiques */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex gap-2 flex-wrap">
+                <button className="px-3 py-1 rounded-full text-sm bg-blue-600 text-white" data-view="front">Face</button>
+                <button className="px-3 py-1 rounded-full text-sm bg-gray-200 dark:bg-gray-700" data-view="side">Profil</button>
+                <button className="px-3 py-1 rounded-full text-sm bg-gray-200 dark:bg-gray-700" data-view="back">Dos</button>
               </div>
-            </details>
+              <button id="replay" className="btn">Rejouer</button>
+            </div>
+
+            {/* Cadre visible en statique */}
+            <div
+              className="rounded-2xl overflow-hidden shadow bg-white dark:bg-gray-800/60"
+              style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}
+            >
+              <lottie-player
+                id="player"
+                src={urls.front}
+                style={{ width: "100%", height: "420px" }}
+                autoplay
+                controls
+                renderer="svg"
+              />
+            </div>
+
+            {/* Mini-script inline pour changer de vue et rejouer (pas de React) */}
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+(function(){
+  const player = document.getElementById('player');
+  const map = { front: '${urls.front}', side: '${urls.side}', back: '${urls.back}' };
+  const btns = document.querySelectorAll('[data-view]');
+  const replay = document.getElementById('replay');
+
+  function setActive(target){
+    btns.forEach(b => b.classList.toggle('bg-blue-600', b===target));
+    btns.forEach(b => b.classList.toggle('text-white', b===target));
+    btns.forEach(b => b.classList.toggle('bg-gray-200', b!==target));
+    btns.forEach(b => b.classList.toggle('dark:bg-gray-700', b!==target));
+  }
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const v = btn.getAttribute('data-view');
+      const next = map[v];
+      if (!next) return;
+      // recharge et lance
+      try { player.load(next); player.play(); } catch(e) {}
+      setActive(btn);
+    });
+  });
+
+  replay?.addEventListener('click', () => {
+    try { player.seek(0); player.play(); } catch(e) {}
+  });
+})();`,
+              }}
+            />
           </>
         ) : ex.video ? (
           <video
@@ -103,3 +142,4 @@ export default function ExercisePage({ params }) {
     </div>
   );
 }
+
