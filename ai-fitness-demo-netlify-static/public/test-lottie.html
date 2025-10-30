@@ -2,7 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Test Lottie — Diagnostic</title>
+  <title>Test Lottie — autonome</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body{font-family:system-ui,ui-sans-serif;background:#0b1220;color:#e5e7eb;padding:24px}
     .card{max-width:840px;margin:0 auto;background:#111827;border-radius:16px;padding:16px 16px 24px}
@@ -12,26 +13,41 @@
 </head>
 <body>
   <div class="card">
-    <h1 style="margin:0 0 10px">Test Lottie — Diagnostic (HTML pur)</h1>
+    <h1 style="margin:0 0 10px">Test Lottie — autonome (CDN uniquement)</h1>
     <div id="diag">Initialisation…</div>
     <div id="anim" aria-label="Lottie"></div>
   </div>
 
-  <!-- lottie-web local (pas de CDN) -->
-  <script src="/js/lottie.min.js"></script>
+  <!-- Lottie-web via CDN (aucun fichier local requis) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
   <script>
     (async function(){
-      const d = (h)=>document.getElementById('diag').innerHTML=h;
-      const ok = (s)=>`<span class="ok">${s}</span>`;
-      const ko = (s)=>`<span class="ko">${s}</span>`;
+      const diag = (html)=>document.getElementById('diag').innerHTML = html;
+      const ok=(s)=>`<span class="ok">${s}</span>`, ko=(s)=>`<span class="ko">${s}</span>`;
+
+      // Vérifie accès au JSON
       let json = '…';
-      try { const r = await fetch('/lottie/squat-front.json',{method:'HEAD'}); json = r.ok?ok('200'):ko(String(r.status)); } catch { json = ko('ERR'); }
+      try {
+        const r = await fetch('/lottie/squat-front.json', { method:'HEAD' });
+        json = r.ok ? ok('200') : ko(String(r.status));
+      } catch { json = ko('ERR'); }
+
+      // Vérifie présence de window.lottie (script CDN)
       const has = !!(window && window.lottie);
-      d(`<b>lottie.min.js :</b> ${has?ok('chargé'):ko('absent')} &nbsp; | &nbsp; <b>/lottie/squat-front.json :</b> ${json}`);
-      if(!has) return;
-      try{
-        window.lottie.loadAnimation({ container: document.getElementById('anim'), renderer:'svg', loop:true, autoplay:true, path:'/lottie/squat-front.json' });
-      }catch(e){ d('Erreur loadAnimation : '+ko(e && e.message || String(e))); }
+      diag(`<b>lottie-web :</b> ${has?ok('chargé'):ko('absent')} &nbsp; | &nbsp; <b>/lottie/squat-front.json :</b> ${json}`);
+      if (!has) return;
+
+      try {
+        window.lottie.loadAnimation({
+          container: document.getElementById('anim'),
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/lottie/squat-front.json'
+        });
+      } catch (e) {
+        diag('Erreur loadAnimation : '+ko(e && e.message || String(e)));
+      }
     })();
   </script>
 </body>
