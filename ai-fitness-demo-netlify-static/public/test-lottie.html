@@ -2,69 +2,36 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Test Lottie — Diagnostic</title>
   <style>
-    body { font-family: ui-sans-serif, system-ui; background:#0b1220; color:#e5e7eb; padding:24px; }
-    .card { max-width:840px; margin:0 auto; background:#111827; border-radius:16px; padding:16px 16px 24px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
-    #anim { width:100%; height:420px; max-width:720px; margin:16px auto 0; border-radius:16px; overflow:hidden; background:#fff; }
-    .ok{color:#16a34a} .ko{color:#dc2626}
-    code{background:#0b1020; padding:2px 6px; border-radius:6px}
+    body{font-family:system-ui,ui-sans-serif;background:#0b1220;color:#e5e7eb;padding:24px}
+    .card{max-width:840px;margin:0 auto;background:#111827;border-radius:16px;padding:16px 16px 24px}
+    #anim{width:100%;height:420px;max-width:720px;margin:16px auto 0;border-radius:16px;overflow:hidden;background:#fff}
+    .ok{color:#16a34a}.ko{color:#dc2626}
   </style>
 </head>
 <body>
   <div class="card">
-    <h1 style="margin:0 0 10px">Test Lottie — Diagnostic local (sans CDN)</h1>
+    <h1 style="margin:0 0 10px">Test Lottie — Diagnostic (HTML pur)</h1>
     <div id="diag">Initialisation…</div>
-    <div id="anim" aria-label="Lottie container"></div>
-    <p style="opacity:.75;margin-top:12px">Si écran blanc : ouvre la Console (F12) et lis les logs <code>[test-lottie]</code>.</p>
+    <div id="anim" aria-label="Lottie"></div>
   </div>
 
-  <!-- 1) Charge lottie-web depuis un fichier local (pas de CDN ni import ESM) -->
+  <!-- lottie-web local (pas de CDN) -->
   <script src="/js/lottie.min.js"></script>
   <script>
     (async function(){
-      const log = (...a)=>console.log("[test-lottie]", ...a);
-      const diag = (html)=>document.getElementById('diag').innerHTML = html;
-
-      // checks de base
-      const el = document.getElementById('anim');
-      if(!el){ diag('<span class="ko">KO</span> conteneur introuvable'); return; }
-
-      // 2) Vérifie que le JSON répond
-      let jsonStatus = '…';
-      try {
-        const r = await fetch('/lottie/squat-front.json', { method:'HEAD' });
-        jsonStatus = r.ok ? '<span class="ok">200</span>' : `<span class="ko">${r.status}</span>`;
-      } catch(e){
-        jsonStatus = '<span class="ko">ERR</span>';
-      }
-
-      // 3) Vérifie la présence de window.lottie
-      const hasLottie = !!(window && window.lottie);
-      diag([
-        '<b>lottie.min.js :</b> ', hasLottie ? '<span class="ok">chargé</span>' : '<span class="ko">non chargé</span>',
-        ' &nbsp; | &nbsp; <b>/lottie/squat-front.json :</b> ', jsonStatus
-      ].join(''));
-
-      if(!hasLottie){
-        log("ERREUR: window.lottie absent. Vérifie /js/lottie.min.js");
-        return;
-      }
-
-      try {
-        window.lottie.loadAnimation({
-          container: el,
-          renderer: 'svg',
-          loop: true,
-          autoplay: true,
-          path: '/lottie/squat-front.json'
-        });
-        log("OK: animation lancée");
-      } catch(e){
-        log("ERREUR: échec loadAnimation", e);
-        diag('Échec loadAnimation : <span class="ko">'+ String(e && e.message || e) +'</span>');
-      }
+      const d = (h)=>document.getElementById('diag').innerHTML=h;
+      const ok = (s)=>`<span class="ok">${s}</span>`;
+      const ko = (s)=>`<span class="ko">${s}</span>`;
+      let json = '…';
+      try { const r = await fetch('/lottie/squat-front.json',{method:'HEAD'}); json = r.ok?ok('200'):ko(String(r.status)); } catch { json = ko('ERR'); }
+      const has = !!(window && window.lottie);
+      d(`<b>lottie.min.js :</b> ${has?ok('chargé'):ko('absent')} &nbsp; | &nbsp; <b>/lottie/squat-front.json :</b> ${json}`);
+      if(!has) return;
+      try{
+        window.lottie.loadAnimation({ container: document.getElementById('anim'), renderer:'svg', loop:true, autoplay:true, path:'/lottie/squat-front.json' });
+      }catch(e){ d('Erreur loadAnimation : '+ko(e && e.message || String(e))); }
     })();
   </script>
 </body>
