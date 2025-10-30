@@ -9,8 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-  
-    "@tensorflow/tfjs": "^4.21.0",
     "autoprefixer": "10.4.20",
     "lottie-web": "5.12.2",
     "next": "14.2.5",
@@ -23,11 +21,7 @@
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5"
   },
-  "overrides": {
-    "@tensorflow-models/pose-detection": "3.6.1"
-  },
   "engines": {
     "node": ">=18 <=20"
   }
 }
-
